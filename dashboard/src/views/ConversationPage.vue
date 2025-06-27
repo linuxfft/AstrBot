@@ -369,6 +369,7 @@ export default {
                 'lark': 'cyan-darken-1',
                 'wecom': 'green-darken-1',
                 'dingtalk': 'blue-darken-2',
+                'goofish': 'blue-darken-2',
                 'default': 'grey-lighten-1'
             },
 

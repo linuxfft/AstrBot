@@ -15,7 +15,7 @@ from astrbot.core.platform.sources.goofish.goofish_api import GoofishApis
 from astrbot.core.platform.sources.goofish.goofish_context_manager import GoofishChatContextManager
 from astrbot.core.platform.sources.goofish.goofish_handlers import GoofishCallbackHandler
 from astrbot.core.platform.sources.goofish.goofish_utils import generate_device_id, generate_mid, generate_uuid, \
-    decrypt_goofish_msg
+    decrypt_goofish_msg, trans_cookies
 
 from enum import Enum, IntEnum, StrEnum
 
@@ -31,9 +31,9 @@ class GoodfishMsgTopic(StrEnum):
 
 class GoofishClient(object):
     def __init__(self, platform_config: dict, platform_settings: dict) -> None:
-        self.unique_cookie = platform_settings["cookie"]
+        self.cookies_str = platform_config["goofish_cookies_str"]
 
-        self.cookies_str = platform_config["cookies_str"]
+        self.unique_cookie = trans_cookies(self.cookies_str)
 
         self.myid = self.unique_cookie.get('unb', '')
 

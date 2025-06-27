@@ -294,6 +294,8 @@ export default {
         return new URL('@/assets/images/platform_logos/kook.png', import.meta.url).href
       } else if (name.includes('vocechat')) {
         return new URL('@/assets/images/platform_logos/vocechat.png', import.meta.url).href
+      } else if (name.includes('Goofish')) {
+        return new URL('@/assets/images/platform_logos/goofish.png', import.meta.url).href
       }
     },
 
@@ -313,6 +315,7 @@ export default {
         "slack": "https://astrbot.app/deploy/platform/slack.html",
         "kook": "https://astrbot.app/deploy/platform/kook.html",
         "vocechat": "https://astrbot.app/deploy/platform/vocechat.html",
+        "goofish": "https://astrbot.app/deploy/platform/vocechat.html",
       }
       return tutorial_map[platform_type] || "https://docs.astrbot.app";
     },

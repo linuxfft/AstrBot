@@ -121,7 +121,6 @@ DEFAULT_CONFIG = {
     "callback_api_base": "",
 }
 
-
 # 配置项的中文描述、值类型
 CONFIG_METADATA_2 = {
     "platform_group": {
@@ -218,6 +217,12 @@ CONFIG_METADATA_2 = {
                         "client_id": "",
                         "client_secret": "",
                     },
+                    "闲鱼(Goofish)": {
+                        "id": "goofish",
+                        "type": "goofish",
+                        "enable": False,
+                        "goofish_cookies_str": "",
+                    },
                     "Telegram": {
                         "id": "telegram",
                         "type": "telegram",
@@ -254,6 +259,11 @@ CONFIG_METADATA_2 = {
                     },
                 },
                 "items": {
+                    "goofish_cookies_str": {
+                        "description": "Goofish Cookies",
+                        "type": "string",
+                        "hint": "Goofish Cookies",
+                    },
                     "slack_connection_mode": {
                         "description": "Slack Connection Mode",
                         "type": "string",
@@ -1953,7 +1963,6 @@ DEFAULT_VALUE_MAP = {
     "list": [],
     "object": {},
 }
-
 
 # "project_atri": {
 #     "description": "Project ATRI 配置",
