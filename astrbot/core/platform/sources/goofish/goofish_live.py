@@ -3,12 +3,14 @@ import base64
 import json
 import os
 import time
+import traceback
 from http import HTTPStatus
 from typing import Dict
 
 import websockets
 from tenacity import retry, retry_if_result, stop_after_attempt
 from websockets.asyncio.client import ClientConnection
+from websockets.asyncio.client import connect
 
 from astrbot import logger
 from astrbot.core.platform.sources.goofish.goofish_api import GoofishApis
@@ -39,14 +41,13 @@ class GoofishClient(object):
 
         self.device_id = generate_device_id(self.myid)
 
-        self.xianyu = GoofishApis()
+        self.xianyu = GoofishApis(cookie=self.unique_cookie)
 
         self.callback_handler_map: Dict[str, GoofishCallbackHandler] = {}
 
-
         self.context_manager = GoofishChatContextManager()
 
-        self.base_url = 'wss://wss-goofish.dingtalk.com/'
+        self.base_url = platform_config["goofish_ws_base_url"]
 
         self._end = False
 
@@ -315,7 +316,7 @@ class GoofishClient(object):
         }
         await ws.send(json.dumps(heartbeat_msg))
         self.last_heartbeat_time = time.time()
-        logger.debug("心跳包已发送")
+        logger.info("[Goofish] 心跳包已发送")
         return heartbeat_mid
 
     async def heartbeat_loop(self, ws):
@@ -349,10 +350,10 @@ class GoofishClient(object):
                     and message_data["code"] == 200
             ):
                 self.last_heartbeat_response = time.time()
-                logger.debug("收到心跳响应")
+                logger.info("[Goofish] 收到心跳响应")
                 return True
         except Exception as e:
-            logger.error(f"处理心跳响应出错: {e}")
+            logger.error(f"[Goofish] 处理心跳响应出错: {e}")
         return False
 
 
@@ -380,21 +381,21 @@ class GoofishClient(object):
                     "Accept-Language": "zh-CN,zh;q=0.9",
                 }
 
-                async with websockets.connect(self.base_url, extra_headers=headers) as websocket:
-                    self.ws = websocket
-                    await self.init(websocket)
+                async with connect(self.base_url, additional_headers=headers) as ws:
+                    self.ws = ws
+                    await self.init(ws)
 
                     # 初始化心跳时间
                     self.last_heartbeat_time = time.time()
                     self.last_heartbeat_response = time.time()
 
                     # 启动心跳任务
-                    self.heartbeat_task = asyncio.create_task(self.heartbeat_loop(websocket))
+                    self.heartbeat_task = asyncio.create_task(self.heartbeat_loop(ws))
 
                     # 启动token刷新任务
                     self.token_refresh_task = asyncio.create_task(self.token_refresh_loop())
 
-                    async for message in websocket:
+                    async for message in ws:
                         try:
                             # 检查是否需要重启连接
                             if self.connection_restart_flag:
@@ -420,10 +421,10 @@ class GoofishClient(object):
                                 for key in ["app-key", "ua", "dt"]:
                                     if key in message_data["headers"]:
                                         ack["headers"][key] = message_data["headers"][key]
-                                await websocket.send(json.dumps(ack))
+                                await ws.send(json.dumps(ack))
 
                             # 处理其他消息
-                            await self.handle_message(message_data, websocket)
+                            await self.handle_message(message_data, ws)
 
                         except json.JSONDecodeError:
                             logger.error("消息解析失败")
@@ -435,6 +436,7 @@ class GoofishClient(object):
                 logger.warning("WebSocket连接已关闭")
 
             except Exception as e:
+                traceback.print_exc()
                 logger.error(f"连接发生错误: {e}")
 
             finally:
@@ -457,8 +459,8 @@ class GoofishClient(object):
                 if self.connection_restart_flag:
                     logger.info("主动重启连接，立即重连...")
                 else:
-                    logger.info("等待5秒后重连...")
-                    await asyncio.sleep(5)
+                    logger.info("等待15秒后重连...")
+                    await asyncio.sleep(15)
 
 
     async def refresh_token(self):
@@ -468,7 +470,7 @@ class GoofishClient(object):
         # 获取新token（如果Cookie失效，get_token会直接退出程序）
         token_result = await self.xianyu.get_token(self.device_id) or {}
         data = token_result.get('data', {})
-        if data and 'accessToken' in data.get('data', ''):
+        if data and 'accessToken' in data:
             new_token = data.get('accessToken')
             self.current_token = new_token
             self.last_token_refresh_time = time.time()
@@ -480,7 +482,7 @@ class GoofishClient(object):
 
     async def token_refresh_loop(self):
         """Token刷新循环"""
-        while True:
+        while not self._end:
             try:
                 current_time = time.time()
 

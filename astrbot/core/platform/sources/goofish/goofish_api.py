@@ -2,6 +2,7 @@ import asyncio
 import os
 import sys
 import time
+from typing import Dict
 
 import httpx
 import re
@@ -15,11 +16,13 @@ def is_retry_p(value: bool | None) -> bool:
     """Return True if value is None"""
     return not value
 
+
 class GoofishApis:
-    def __init__(self):
+    def __init__(self, cookie: Dict):
         self.url = 'https://h5api.m.goofish.com/h5/mtop.taobao.idlemessage.pc.login.token/1.0/'
         # transport = httpx.AsyncHTTPTransport(retries=3)
         self.session = httpx.AsyncClient()
+        self.session.cookies.update(cookie)
         self.session.headers.update({
             'accept': 'application/json',
             'accept-language': 'zh-CN,zh;q=0.9',
@@ -38,26 +41,33 @@ class GoofishApis:
         })
 
         self._is_login = False
+        self._get_token_retry_login = False
 
     def clear_duplicate_cookies(self):
         """清理重复的cookies"""
         # 创建一个新的CookieJar
-        new_jar = httpx.Cookies()
+        new_jar = {}
 
         # 记录已经添加过的cookie名称
         added_cookies = set()
 
         # 按照cookies列表的逆序遍历（最新的通常在后面）
+        if self._is_login:
+            try:
+                self.session.cookies.clear(domain='')
+            except Exception:
+                pass
+
         cookie_list = self.session.cookies
 
         for key, val in cookie_list.items():
             # 如果这个cookie名称还没有添加过，就添加到新jar中
             if key not in added_cookies:
-                new_jar.set(key, val)
+                new_jar.update({key: val})
                 added_cookies.add(key)
 
         # 替换session的cookies
-        self.session.cookies = new_jar
+        self.session.cookies.update(new_jar)
 
         # 更新完cookies后，更新.env文件
         self.update_env_cookies()
@@ -95,7 +105,8 @@ class GoofishApis:
         except Exception as e:
             logger.error(f"更新.env文件失败: {str(e)}")
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=0.2, max=1))
+    @retry(stop=stop_after_attempt(3),
+           wait=wait_exponential(multiplier=1, min=1, max=5))
     async def do_login(self) -> bool:
         url = 'https://passport.goofish.com/newlogin/hasLogin.do'
         params = {
@@ -137,15 +148,15 @@ class GoofishApis:
             self._is_login = False
             return False
 
-    @retry(retry=retry_if_result(is_retry_p))
+    @retry(retry=retry_if_result(is_retry_p), stop=stop_after_attempt(3),
+           wait=wait_exponential(multiplier=1, min=1, max=5))
     async def get_token(self, device_id):
-        if not self._is_login:
+        if self._get_token_retry_login:
             logger.warning("获取token失败，尝试重新登陆")
             # 尝试通过hasLogin重新登录
             ret = await self.do_login()
             if ret:
                 logger.info("重新登录成功，重新尝试获取token")
-                return False
             else:
                 logger.error("重新登录失败，Cookie已失效.程序即将退出，请更新.env文件中的COOKIES_STR后重新启动")
                 sys.exit(1)  # 直接退出程序
@@ -176,7 +187,7 @@ class GoofishApis:
         params['sign'] = sign
 
         response = await self.session.post('https://h5api.m.goofish.com/h5/mtop.taobao.idlemessage.pc.login.token/1.0/',
-                                     params=params, data=data)
+                                           params=params, data=data)
         res_json = response.json()
 
         if isinstance(res_json, dict):
@@ -188,15 +199,19 @@ class GoofishApis:
                 if 'Set-Cookie' in response.headers:
                     logger.debug("检测到Set-Cookie，更新cookie")  # 降级为DEBUG并简化
                     self.clear_duplicate_cookies()
+                self._get_token_retry_login = True
                 return False
             else:
                 logger.info("Token获取成功!!!")
+                self._get_token_retry_login = False
                 return res_json
         else:
             logger.error(f"Token API返回格式异常: {res_json}")
+            self._get_token_retry_login = True
             return False
 
-    @retry(retry=retry_if_result(is_retry_p), stop=stop_after_attempt(3))
+    @retry(retry=retry_if_result(is_retry_p), stop=stop_after_attempt(3),
+           wait=wait_exponential(multiplier=1, min=1, max=5))
     async def get_item_info(self, item_id):
         """获取商品信息，自动处理token失效的情况"""
 
@@ -251,5 +266,3 @@ class GoofishApis:
         else:
             logger.error(f"商品信息API返回格式异常: {res_json}")
             return False
-
-

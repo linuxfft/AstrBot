@@ -16,6 +16,8 @@ class PlatformManager:
 
         self._inst_map = {}
 
+        self._config = config # 将配置文件初始化
+
         self.platforms_config = config["platform"]
         self.settings = config["platform_settings"]
         self.event_queue = event_queue

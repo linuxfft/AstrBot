@@ -1,7 +1,6 @@
 import asyncio
 
 import threading
-import time
 import uuid
 from typing import Dict
 
@@ -41,6 +40,13 @@ class GoofishPlatformAdapter(Platform):
                 return True
 
         self.client = AstrCallbackClient()
+
+    def meta(self) -> PlatformMetadata:
+        return PlatformMetadata(
+            name="goofish",
+            description="咸鱼机器人API适配器",
+            id=self.config.get("id"),
+        )
 
 
     async def convert_msg(
@@ -95,7 +101,7 @@ class GoofishPlatformAdapter(Platform):
             try:
                 if not self._shutdown_event:
                     self._shutdown_event = threading.Event()
-                task = async_loop.create_task(self.client.main_task())
+                task = async_loop.create_task(self._client.main_task())
                 self._shutdown_event.wait()
                 if task.done():
                     task.result()
@@ -111,6 +117,6 @@ class GoofishPlatformAdapter(Platform):
         await loop.run_in_executor(None, start_client, loop)
 
     async def terminate(self):
-        await self.client.close_main_task()
+        await self._client.close_main_task()
         if self._shutdown_event:
             self._shutdown_event.set()

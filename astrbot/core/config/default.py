@@ -222,6 +222,7 @@ CONFIG_METADATA_2 = {
                         "type": "goofish",
                         "enable": False,
                         "goofish_cookies_str": "",
+                        "goofish_ws_base_url": "wss://wss-goofish.dingtalk.com/",
                     },
                     "Telegram": {
                         "id": "telegram",
@@ -263,6 +264,11 @@ CONFIG_METADATA_2 = {
                         "description": "Goofish Cookies",
                         "type": "string",
                         "hint": "Goofish Cookies",
+                    },
+                    "goofish_ws_base_url": {
+                        "description": "Goofish Websocket Base URL",
+                        "type": "string",
+                        "hint": "Goofish Websocket Base URL",
                     },
                     "slack_connection_mode": {
                         "description": "Slack Connection Mode",
