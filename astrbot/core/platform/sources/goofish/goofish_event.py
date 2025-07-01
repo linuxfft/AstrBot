@@ -1,6 +1,8 @@
 import asyncio
 import re
+from typing import Dict
 
+from astrbot import logger
 from astrbot.core.message.components import Plain
 from astrbot.core.message.message_event_result import MessageChain
 from astrbot.core.platform import AstrMessageEvent
@@ -51,6 +53,15 @@ class GoofishMessageEvent(AstrMessageEvent):
 
     async def send(self, message: MessageChain):
         _, text = self._parse_text_blocks(message)
+        logger.info(f"[Goofish] 机器人回复: {text}")
+        # 添加机器人回复到上下文
+        raw_message: Dict = self.message_obj.raw_message
+        url_info = raw_message["1"]["10"]["reminderUrl"]
+        item_id = url_info.split("itemId=")[1].split("&")[0] if "itemId=" in url_info else None
+        self._client.context_manager.add_message_by_chat(self.message_obj.session_id,
+                                                         self.message_obj.self_id, item_id,
+                                                         "assistant", text)
+
         await self._client.send_msg(self._client.ws, self.message_obj.session_id, self.message_obj.sender.user_id, text)
         await super().send(message)
 

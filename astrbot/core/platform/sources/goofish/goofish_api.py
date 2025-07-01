@@ -258,7 +258,6 @@ class GoofishApis:
                 if 'Set-Cookie' in response.headers:
                     logger.debug("检测到Set-Cookie，更新cookie")
                     self.clear_duplicate_cookies()
-                time.sleep(0.5)
                 return False
             else:
                 logger.debug(f"商品信息获取成功: {item_id}")

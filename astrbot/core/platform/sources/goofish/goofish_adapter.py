@@ -4,6 +4,7 @@ import threading
 import uuid
 from typing import Dict
 
+from astrbot.core.message.components import Plain
 from .goofish_event import GoofishMessageEvent
 from .goofish_handlers import GoofishCallbackHandler
 from .goofish_live import GoofishClient, GoodfishMsgTopic
@@ -50,9 +51,8 @@ class GoofishPlatformAdapter(Platform):
             id=self.config.get("id"),
         )
 
-
     async def convert_msg(
-        self, message: Dict
+            self, message: Dict
     ) -> AstrBotMessage:
         create_time = int(message["1"]["5"])
         send_user_name = message["1"]["10"]["reminderTitle"]
@@ -60,7 +60,6 @@ class GoofishPlatformAdapter(Platform):
         send_message = message["1"]["10"]["reminderContent"]
         chat_id = message["1"]["2"].split('@')[0]
         abm = AstrBotMessage()
-        abm.message = []
         abm.message_str = send_message
         abm.timestamp = create_time
         abm.type = MessageType.FRIEND_MESSAGE
@@ -73,15 +72,13 @@ class GoofishPlatformAdapter(Platform):
 
         abm.session_id = chat_id
 
-        message_type: str = "text" # 只有文本形式
-        match message_type:
-            case "text":
-                abm.message.append(send_message)
-            case "audio":
-                pass
+        message_chain = []
+        if abm.message_str:
+            message_chain.append(Plain(text=abm.message_str))
+
+        abm.message = message_chain
 
         return abm  # 别忘了返回转换后的消息对象
-
 
     async def handle_msg(self, abm: AstrBotMessage):
         event = GoofishMessageEvent(

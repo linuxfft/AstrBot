@@ -135,6 +135,7 @@ class GoofishClient(object):
                 ack["headers"]["ua"] = message["headers"]["ua"]
             if 'dt' in message["headers"]:
                 ack["headers"]["dt"] = message["headers"]["dt"]
+            logger.info(f"[Goofish] 发送ACK数据")
             await websocket.send(json.dumps(ack))
         except Exception as e:
             logger.error(f"发送ACK数据失败: {e}")
@@ -173,10 +174,10 @@ class GoofishClient(object):
                 try:
                     data = base64.b64decode(data).decode("utf-8")
                     data = json.loads(data)
-                    # logger.info(f"无需解密 message: {data}")
+                    logger.info(f"[Goofish] 无需解密 message: {data}")
                     return
                 except Exception as e:
-                    # logger.info(f'加密数据: {data}')
+                    logger.info(f'[Goofish] 加密数据: {data}')
                     decrypted_data = decrypt_goofish_msg(data)
                     message = json.loads(decrypted_data)
             except Exception as e:
@@ -263,7 +264,7 @@ class GoofishClient(object):
             item_info = self.context_manager.get_item_info(item_id)
             if not item_info:
                 logger.info(f"从API获取商品信息: {item_id}")
-                api_result = self.xianyu.get_item_info(item_id)
+                api_result = await self.xianyu.get_item_info(item_id)
                 if 'data' in api_result and 'itemDO' in api_result['data']:
                     item_info = api_result['data']['itemDO']
                     # 保存商品信息到数据库
@@ -280,24 +281,24 @@ class GoofishClient(object):
             context = self.context_manager.get_context_by_chat(chat_id)
 
             await self._do_msg_handler(GoodfishMsgTopic.Order, message)
-            # 生成回复
-            bot_reply = bot.generate_reply(
-                send_message,
-                item_description,
-                context=context
-            )
+            # # 生成回复
+            # bot_reply = bot.generate_reply(
+            #     send_message,
+            #     item_description,
+            #     context=context
+            # )
+            #
+            # # 检查是否为价格意图，如果是则增加议价次数
+            # if bot.last_intent == "price":
+            #     self.context_manager.increment_bargain_count_by_chat(chat_id)
+            #     bargain_count = self.context_manager.get_bargain_count_by_chat(chat_id)
+            #     logger.info(f"用户 {send_user_name} 对商品 {item_id} 的议价次数: {bargain_count}")
 
-            # 检查是否为价格意图，如果是则增加议价次数
-            if bot.last_intent == "price":
-                self.context_manager.increment_bargain_count_by_chat(chat_id)
-                bargain_count = self.context_manager.get_bargain_count_by_chat(chat_id)
-                logger.info(f"用户 {send_user_name} 对商品 {item_id} 的议价次数: {bargain_count}")
-
-            # 添加机器人回复到上下文
-            self.context_manager.add_message_by_chat(chat_id, self.myid, item_id, "assistant", bot_reply)
-
-            logger.info(f"机器人回复: {bot_reply}")
-            await self.send_msg(websocket, chat_id, send_user_id, bot_reply)
+            # # 添加机器人回复到上下文
+            # self.context_manager.add_message_by_chat(chat_id, self.myid, item_id, "assistant", bot_reply)
+            #
+            # logger.info(f"机器人回复: {bot_reply}")
+            # await self.send_msg(websocket, chat_id, send_user_id, bot_reply)
 
         except Exception as e:
             logger.error(f"处理消息时发生错误: {str(e)}")
