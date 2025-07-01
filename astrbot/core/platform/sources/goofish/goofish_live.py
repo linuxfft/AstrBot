@@ -28,7 +28,7 @@ class GoodfishMode(IntEnum):
 
 
 class GoodfishMsgTopic(StrEnum):
-    Order = "Order" # 订单
+    Order = "Order"  # 订单
 
 
 class GoofishClient(object):
@@ -109,7 +109,7 @@ class GoofishClient(object):
         if chat_id in self.manual_mode_timestamps.keys():
             del self.manual_mode_timestamps[chat_id]
 
-    def toggle_manual_mode(self, chat_id) ->GoodfishMode:
+    def toggle_manual_mode(self, chat_id) -> GoodfishMode:
         """切换人工接管模式"""
         if self.is_manual_mode(chat_id):
             self.exit_manual_mode(chat_id)
@@ -118,7 +118,7 @@ class GoofishClient(object):
             self.enter_manual_mode(chat_id)
             return GoodfishMode.Manual
 
-    async def _do_send_ack_msg(self,  message_data: Dict, websocket: ClientConnection):
+    async def _do_send_ack_msg(self, message_data: Dict, websocket: ClientConnection):
         """发送ACK数据"""
         try:
             message = message_data
@@ -139,18 +139,15 @@ class GoofishClient(object):
         except Exception as e:
             logger.error(f"发送ACK数据失败: {e}")
 
-    async def _do_msg_handler(self, topic: GoodfishMsgTopic):
+    async def _do_msg_handler(self, topic: GoodfishMsgTopic, msg_data: Dict):
         handler = self.callback_handler_map.get(topic, None)
         if not handler:
             return
-        await handler(topic)
-
-
+        await handler.process(msg_data)
 
     def register_callback_handler(self, topic: GoodfishMsgTopic, handler: GoofishCallbackHandler):
         handler.dingtalk_client = self
         self.callback_handler_map[topic] = handler
-
 
     async def handle_message(self, message_data: Dict, websocket: ClientConnection):
         """处理所有类型的消息"""
@@ -281,6 +278,8 @@ class GoofishClient(object):
 
             # 获取完整的对话上下文
             context = self.context_manager.get_context_by_chat(chat_id)
+
+            await self._do_msg_handler(GoodfishMsgTopic.Order, message)
             # 生成回复
             bot_reply = bot.generate_reply(
                 send_message,
@@ -355,7 +354,6 @@ class GoofishClient(object):
         except Exception as e:
             logger.error(f"[Goofish] 处理心跳响应出错: {e}")
         return False
-
 
     async def close_main_task(self):
         self._end = False
@@ -461,7 +459,6 @@ class GoofishClient(object):
                 else:
                     logger.info("等待15秒后重连...")
                     await asyncio.sleep(15)
-
 
     async def refresh_token(self):
         """刷新token"""

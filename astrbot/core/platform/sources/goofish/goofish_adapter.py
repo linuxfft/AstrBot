@@ -6,7 +6,7 @@ from typing import Dict
 
 from .goofish_event import GoofishMessageEvent
 from .goofish_handlers import GoofishCallbackHandler
-from .goofish_live import GoofishClient
+from .goofish_live import GoofishClient, GoodfishMsgTopic
 from ...register import register_platform_adapter
 from astrbot import logger
 
@@ -41,6 +41,8 @@ class GoofishPlatformAdapter(Platform):
 
         self.client = AstrCallbackClient()
 
+        self._client.register_callback_handler(GoodfishMsgTopic.Order, self.client)
+
     def meta(self) -> PlatformMetadata:
         return PlatformMetadata(
             name="goofish",
@@ -56,6 +58,7 @@ class GoofishPlatformAdapter(Platform):
         send_user_name = message["1"]["10"]["reminderTitle"]
         send_user_id = message["1"]["10"]["senderUserId"]
         send_message = message["1"]["10"]["reminderContent"]
+        chat_id = message["1"]["2"].split('@')[0]
         abm = AstrBotMessage()
         abm.message = []
         abm.message_str = send_message
@@ -68,7 +71,7 @@ class GoofishPlatformAdapter(Platform):
         abm.message_id = uuid.uuid4().hex
         abm.raw_message = message
 
-        abm.session_id = abm.sender.user_id
+        abm.session_id = chat_id
 
         message_type: str = "text" # 只有文本形式
         match message_type:
@@ -109,9 +112,9 @@ class GoofishPlatformAdapter(Platform):
                 self._shutdown_event = None
             except Exception as e:
                 if "Graceful shutdown" in str(e):
-                    logger.info("闲鱼适配器已被优雅地关闭")
+                    logger.info("[Goofish] 闲鱼适配器已被优雅地关闭")
                     return
-                logger.error(f"闲鱼机器人启动失败: {e}")
+                logger.error(f"[Goofish] 闲鱼机器人启动失败: {e}")
 
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, start_client, loop)
